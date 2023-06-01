@@ -68,7 +68,6 @@ int main(int argc, char **argv)
 
     DML dml(opt, argv[0]);
 
-
     if (*list) {
         const std::vector<char>& keyBuffer = dml.getKeyBuffer();
         fprintf(stdout, "%.*s", (int) keyBuffer.size(), &keyBuffer[0]);

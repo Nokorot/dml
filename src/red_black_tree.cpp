@@ -7,47 +7,34 @@
 
 #include "red_black_tree.h"
 
-RedBlackTree::RedBlackTree() 
-    : m_root(-1)
-{}
-
-RedBlackTree::RedBlackTree(int bufferSize) 
-    : RedBlackTree()
-{
-    m_nodeBuffer.resize(bufferSize);
-};
-
-RedBlackTree::RedBlackTree(std::ifstream &file)
-    : RedBlackTree()
-{
-    loadTreeFromFile(file);
-}
-
-RedBlackTree::RedBlackTree(const std::string& filename) 
-    : RedBlackTree()
-{
-    loadTreeFromFile(filename);
-}
-
 int RedBlackTree::key_compare(const char *key, int keyLen, int newNodeIndex) {
-    return std::strncmp(key, &m_keysBuffer[m_nodeBuffer[newNodeIndex].keyOffset], keyLen);
+    return std::strncmp(key, &m_keyBuffer[m_nodeBuffer[newNodeIndex].keyOffset], keyLen);
 }
 
-void RedBlackTree::insert(int keyOffset, int keyLen, int value) 
+void RedBlackTree::insert(const std::string &key, int value) 
 {
-    const char *key = &m_keysBuffer[keyOffset];
+    int keyOffset = m_keyBuffer.size();
+    { // Add key to buffer
+        m_keyBuffer.resize(m_keyBuffer.size() + key.size() + 1);
 
-
-    m_nodeBuffer.push_back({keyOffset, keyLen, value});
-    int newNodeIndex = m_nodeBuffer.size()-1;
+        char *buffer = &m_keyBuffer[0] + keyOffset;
+        memcpy(buffer, key.c_str(), key.size());
+        buffer[key.size()] = '\n';
+    }
+    
+    int newNodeIndex = m_nodeCount++;
+    m_nodeBuffer.resize(m_nodeCount);
     Node *nd = &m_nodeBuffer[newNodeIndex];
+    nd->keyOffset = keyOffset;
+    nd->keyLen = key.size();
+    nd->value = value;
 
     // BST-style insertion
     int currentNodeIndex = m_root;
     int parentNodeIndex = -1;
     while (currentNodeIndex != -1) {
         parentNodeIndex = currentNodeIndex;
-        if (key_compare(key, nd->keyLen, currentNodeIndex) < 0)  {
+        if (key_compare(key.c_str(), key.size(), currentNodeIndex) < 0)  {
             currentNodeIndex = m_nodeBuffer[currentNodeIndex].left;
         } else {
             currentNodeIndex = m_nodeBuffer[currentNodeIndex].right;
@@ -57,16 +44,16 @@ void RedBlackTree::insert(int keyOffset, int keyLen, int value)
     nd->parent = parentNodeIndex;
     if (parentNodeIndex == -1) {
         m_root = newNodeIndex;  // Tree is empty
-    } else if (key_compare(key, nd->keyLen, parentNodeIndex) < 0) {
+    } else if (key_compare(key.c_str(), key.size(), parentNodeIndex) < 0) {
         m_nodeBuffer[parentNodeIndex].left = newNodeIndex;
     } else {
         m_nodeBuffer[parentNodeIndex].right = newNodeIndex;
     }
-
+ 
     insertFixup(newNodeIndex);
 }
 
-int RedBlackTree::search(std::string key) {
+int RedBlackTree::search(const std::string &key) {
     int currentNodeIndex = m_root;
     while (currentNodeIndex != -1 && key_compare(key.c_str(), key.length(), currentNodeIndex) != 0) {
         if (key_compare(key.c_str(), key.length(), currentNodeIndex) < 0) {
@@ -85,25 +72,15 @@ void RedBlackTree::printTree()
     inOrderTraversal(m_root);
 }
 
-void RedBlackTree::saveTreeToFile(const std::string& filename) {
-
-
-    std::ofstream file(filename, std::ios::binary);
-    if (file.is_open()) {
-        saveTreeToFile(file);
-        std::cout << "Tree saved to file: " << filename << std::endl;
-    } else {
-        std::cout << "Unable to open file: " << filename << std::endl;
-    }
-}
-
 void RedBlackTree::saveTreeToFile(std::ofstream &file) {
     assert(file.is_open());
-    
-    fprintf(stdout, "hey\n");
-    fprintf(stdout, "A: %u\n", m_root);
+
+    size_t keyBufferSize = m_keyBuffer.size();
+    file.write(reinterpret_cast<const char*>(&keyBufferSize), sizeof(keyBufferSize));
+    file.write(reinterpret_cast<const char*>(&m_keyBuffer[0]), sizeof(char) * keyBufferSize);
+ 
+
     file.write(reinterpret_cast<const char*>(&m_root), sizeof(m_root));
-    fprintf(stdout, "A: %u\n", m_root);
 
     int bufferSize = m_nodeBuffer.size();
     file.write(reinterpret_cast<const char*>(&bufferSize), sizeof(bufferSize));
@@ -111,17 +88,12 @@ void RedBlackTree::saveTreeToFile(std::ofstream &file) {
     file.close();
 }
 
-void RedBlackTree::loadTreeFromFile(const std::string& filename) {
-    std::ifstream file(filename, std::ios::binary);
-    if (file.is_open()) {
-        loadTreeFromFile(file);
-        std::cout << "Tree loaded from file: " << filename << std::endl;
-    } else {
-        std::cout << "Unable to open file: " << filename << std::endl;
-    }
-}
-
 void RedBlackTree::loadTreeFromFile(std::ifstream &file) {
+    size_t keysBufferSize;
+    file.read(reinterpret_cast<char*>(&keysBufferSize), sizeof(keysBufferSize));
+    m_keyBuffer.resize(keysBufferSize);
+    file.read(reinterpret_cast<char*>(&m_keyBuffer[0]), keysBufferSize);
+
     file.read(reinterpret_cast<char*>(&m_root), sizeof(m_root));
 
     int bufferSize;
@@ -226,7 +198,7 @@ void RedBlackTree::inOrderTraversal(int nodeIndex)
     if (nodeIndex != -1) {
         inOrderTraversal(m_nodeBuffer[nodeIndex].left);
         // std::cout <<  << " ";
-        fprintf(stdout, "¤ %u %.*s\n",  m_nodeBuffer[nodeIndex].keyLen, m_nodeBuffer[nodeIndex].keyLen, &m_keysBuffer[m_nodeBuffer[nodeIndex].keyOffset]);
+        fprintf(stdout, "¤ %u %.*s\n",  m_nodeBuffer[nodeIndex].keyLen, m_nodeBuffer[nodeIndex].keyLen, &m_keyBuffer[m_nodeBuffer[nodeIndex].keyOffset]);
 
         inOrderTraversal(m_nodeBuffer[nodeIndex].right);
     }

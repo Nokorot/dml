@@ -41,8 +41,8 @@ install() {
 
 run() {
     set -x 
-    [ -z "$1" ] || IN_FILE="$1"
-    ./$PRGNAME "$IN_FILE"
+    # [ -z "$1" ] || { IN_FILE="$1"; shift; }
+    ./$PRGNAME "$IN_FILE" $@
     set +x 
 }
 
@@ -68,8 +68,10 @@ if [ -z "$1" ]; then
 else
   case "$1" in
     debug)    debug ;;
+    release)  release ;;
     run)      debug && { shift; run $@; } ;;
     install)  release && install ;;
     clean)    clean ;;
+    *) echo "Unknown sub-command '$1'" ;;
   esac
 fi

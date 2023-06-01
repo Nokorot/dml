@@ -30,6 +30,7 @@ const std::vector<char>& DML::getKeyBuffer()
 const char* DML::search(const std::string &key) 
 {
     int index = m_indexTree.search(key);
+
     return &m_valueBuffer[index];
 }
 
@@ -62,36 +63,23 @@ void DML::saveCacheFile()
         return;
     }
 
-    std::vector<char>& keyBuffer = m_indexTree.getKeyBuffer();
+    m_indexTree.saveTreeToFile(outFile);
 
-    size_t keyBufferSize = keyBuffer.size();
-    outFile.write(reinterpret_cast<const char*>(&keyBufferSize), sizeof(keyBufferSize));
-    outFile.write(reinterpret_cast<const char*>(&keyBuffer[0]), sizeof(char) * keyBufferSize);
 
     size_t valueBufferSize = m_valueBuffer.size();
     outFile.write(reinterpret_cast<const char*>(&valueBufferSize), sizeof(valueBufferSize));
     outFile.write(reinterpret_cast<const char*>(&m_valueBuffer[0]), sizeof(char) * valueBufferSize);
-
-    m_indexTree.saveTreeToFile(outFile);
 }
 
 void DML::loadCacheFiles() {
     std::ifstream file(m_cacheFilepath, std::ios::binary);
     if (file.is_open()) {
-        std::vector<char>& keyBuffer = m_indexTree.getKeyBuffer();
-
-        size_t keysBufferSize;
-        file.read(reinterpret_cast<char*>(&keysBufferSize), sizeof(keysBufferSize));
-        keyBuffer.resize(keysBufferSize);
-        file.read(reinterpret_cast<char*>(&keyBuffer[0]), keysBufferSize);
+        m_indexTree.loadTreeFromFile(file);
 
         size_t valuesBufferSize;
         file.read(reinterpret_cast<char*>(&valuesBufferSize), sizeof(valuesBufferSize));
         m_valueBuffer.resize(valuesBufferSize);
         file.read(reinterpret_cast<char*>(&m_valueBuffer[0]), valuesBufferSize);
-
-        m_indexTree.loadTreeFromFile(file);
-        // m_indexTree = new RedBlackTree(m_keysBuffer, file);
     } else {
         std::cout << "Unable to the cache open file." << std::endl;
     }

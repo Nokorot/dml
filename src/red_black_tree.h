@@ -14,7 +14,10 @@ struct Node {
     int left;
     int right;
 
-    Node() { }
+    Node() :
+        keyOffset(-1), keyLen(-1), value(-1),
+        color(Color::RED), parent(-1), left(-1), right(-1)
+    { }
 
     Node(int keyOffset, int keyLen, int value) 
         : keyOffset(keyOffset), keyLen(keyLen), value(value), 
@@ -24,31 +27,27 @@ struct Node {
 
 class RedBlackTree {
 public:
-    RedBlackTree();
-    RedBlackTree(int bufferSize);
-    RedBlackTree(const std::string& filename);
-    RedBlackTree(std::ifstream &file);
+    // RedBlackTree();
 
-    void insert(int key, int keyLen, int value);
-    int search(std::string key);
+    void insert(const std::string &key, int value);
+    int search(const std::string &key);
 
-    void saveTreeToFile(const std::string& filename);
     void saveTreeToFile(std::ofstream &file);
 
-    // void setKeyBuffer(char *keyBuffer);
-    inline std::vector<char>& getKeyBuffer() {
-        return m_keysBuffer;
+    inline const std::vector<char>& getKeyBuffer() {
+        return m_keyBuffer;
     };
 
-    void loadTreeFromFile(const std::string& filename);
     void loadTreeFromFile(std::ifstream &file);
 
     void printTree();
 
 private:
-    int m_root;
+    int m_root = -1;
+
+    int m_nodeCount = 0;
     std::vector<Node> m_nodeBuffer;
-    std::vector<char> m_keysBuffer;
+    std::vector<char> m_keyBuffer;
 
 private:
     int key_compare(const char *key, int keyLen, int newNodeIndex);

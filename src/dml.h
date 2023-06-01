@@ -14,7 +14,6 @@ public:
     const char* search(const std::string &key);
 
 private:
-
     RedBlackTree m_indexTree; 
     std::vector<char> m_valueBuffer;
 

@@ -17,54 +17,73 @@ FileParser::FileParser(const std::string &inputFile)
 
 void FileParser::parseFile(RedBlackTree &indexTree, std::vector<char> &valueBuffer) 
 { 
-    int keyOffset = 0;
-    int valueOffset = 0;
-     
-    loadFromFile(m_inputFile, keyOffset, valueOffset); 
-
-    std::vector<char>& keyBuffer = indexTree.getKeyBuffer();
-    keyBuffer.resize(keyOffset);
-
-    keyOffset = 0;
-    for (size_t i=0; i < m_keys.size(); ++i) { 
-        // \n terminated
-        memcpy(&keyBuffer[keyOffset], m_keys[i].c_str(), m_keys[i].size());
-        keyBuffer[keyOffset + m_keys[i].size()] = '\n';
-        
-        // NOTE: This is the only place m_keyIndexMap is used, and as it is it is not necessary.
-        // Since there are the same number of keys and values. So we can just use the index.
-        // It may be useful, if we remove the empty vales for example.
-        indexTree.insert(keyOffset, m_keys[i].size(), m_keyIndexMap[m_keys[i]]);
-
-        keyOffset += m_keys[i].size() + 1;
-    }
-
-    valueBuffer.resize(valueOffset);
-    valueOffset = 0;
-    for (size_t i=0; i < m_values.size(); ++i) { 
-        // \0 terminated
-        memcpy(&valueBuffer[valueOffset], m_values[i].c_str(), m_values[i].size() + 1);
-        valueOffset += m_values[i].size() + 1;
-    }
+    loadFromFile(m_inputFile, indexTree, valueBuffer); 
 }
 
-void FileParser::loadLine(std::string trimmedLine, int &keyOffset, int &valueOffset) {
+void FileParser::loadLine(std::string trimmedLine, RedBlackTree &indexTree, std::vector<char> &valueBuffer) {
+
     std::istringstream iss(trimmedLine);
-    std::string key, value;
-    iss >> key;
-                
-    std::getline(iss >> std::ws, value);  // Extract the entire rest of the line as the value
- 
-    m_keys.push_back(key);
-    keyOffset += key.size() + 1;
+    std::string directive;
+    iss >> directive;
 
-    m_keyIndexMap[key] = valueOffset; // Initialize index as 0
-    m_values.push_back(value);
+    // TODO IF first character is %, hashTable
 
-    valueOffset += value.size() + 1;
+    // Check for the '%include' directive
+    if (directive.compare("%include") == 0)
+    {
+        std::string includeFile;
+        iss >> includeFile;
+
+        // TODO: Error if there is more on the line?
+  
+        // Load the included file recursively
+        loadFromFile(includeFile, indexTree, valueBuffer);
+    }
+    else if (directive.compare("%check") == 0)
+    {
+        std::string program;
+        iss >> program;
+
+        if (isProgramInPath(program))
+        {
+            std::string line;
+            std::getline(iss >> std::ws, line);
+            loadLine(program + " " + line, indexTree, valueBuffer);
+        }
+    }
+    else if (directive.compare("%check*") == 0)
+    {
+        std::string program;
+        iss >> program;
+
+        if (isProgramInPath(program))
+        {
+            std::string line;
+            std::getline(iss >> std::ws, line);
+            loadLine(line, indexTree, valueBuffer);
+        }
+    }
+    else  
+    {
+        std::string key = directive;
+        std::string value;
+                    
+        std::getline(iss >> std::ws, value);  // Extract the entire rest of the line as the value
+        int valueOffset = valueBuffer.size();
+        {
+            valueBuffer.resize(valueOffset + value.size() + 1);
+
+            memcpy(&valueBuffer[valueOffset], value.c_str(), value.size());
+            valueBuffer[valueOffset + value.size()] = '\0';
+      
+            indexTree.insert(key, valueOffset);
+        }
+    }
+
+
 }
 
-void FileParser::loadFromFile(const std::string& filepath, int &keyOffset, int &valueOffset)
+void FileParser::loadFromFile(const std::string& filepath, RedBlackTree &indexTree, std::vector<char> &valueBuffer)
 {
     std::ifstream inFile(filepath);
     if (!inFile)
@@ -77,59 +96,50 @@ void FileParser::loadFromFile(const std::string& filepath, int &keyOffset, int &
     std::string pendingLine; // Store the pending line continuation
     while (std::getline(inFile, line))
     {
-        std::string trimmedLine = trim(line);
-    
         // Check if the line continuation is pending
         if (!pendingLine.empty())
         {
-            trimmedLine = pendingLine + trimmedLine;
+            line = pendingLine + line;
             pendingLine = "";
         }
 
-        // Check for the '%include' directive
-        if (trimmedLine.compare(0, 8, "%include") == 0)
+        // Check if the line ends with a backslash
+        if (line.back() == '\\')
         {
-            std::istringstream iss(trimmedLine);
-            std::string directive, includeFile;
-            iss >> directive >> includeFile;
-
-            // Remove the '%include' keyword and leading white-space
-            includeFile = includeFile.substr(includeFile.find_first_not_of(" \t"));
-            // Load the included file recursively
-            loadFromFile(includeFile, keyOffset, valueOffset);
-        } 
-        else  
-        {
-            if (trimmedLine.empty() || trimmedLine[0] == '#')
-                continue;
-
-            size_t commentPos = trimmedLine.find('#');
-            if (commentPos != std::string::npos)
-            {
-                // Check if the '#' is escaped
-                if (commentPos > 0 && trimmedLine[commentPos - 1] == '\\')
-                    trimmedLine.erase(commentPos - 1, 1);
-                else
-                    trimmedLine.erase(commentPos);
-            }
-            
-            // Check if the line ends with a backslash
-            if (trimmedLine.back() == '\\')
-            {
-                trimmedLine.pop_back();
-                pendingLine = trimmedLine;
-                continue;
-            }
-
-            loadLine(trimmedLine, keyOffset, valueOffset);
+            line.pop_back();
+            pendingLine = line;
+            continue;
         }
+
+        // NOTE: This comes after the backslash check
+        std::string trimmedLine = trim(line);
+
+        if (trimmedLine.empty() || trimmedLine[0] == '#')
+            continue;
+
+        // Handle comments
+        size_t commentPos = trimmedLine.find('#');
+        if (commentPos != std::string::npos)
+        {
+            // Check if the '#' is escaped
+            if (commentPos > 0 && trimmedLine[commentPos - 1] == '\\')
+                trimmedLine.erase(commentPos - 1, 1);
+            else
+                trimmedLine.erase(commentPos);
+        }
+
+        loadLine(trimmedLine, indexTree, valueBuffer);
     }
 
     if (!pendingLine.empty())
-        loadLine(pendingLine, keyOffset, valueOffset);
-
+        loadLine(pendingLine, indexTree, valueBuffer);
 }
 
+bool FileParser::isProgramInPath(const std::string& programName) {
+    std::string command = "which " + programName + " > /dev/null 2>&1";
+    int result = std::system(command.c_str());
+    return (result == 0);
+}
 
 std::string FileParser::trim(const std::string& str)
 {

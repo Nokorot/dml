@@ -1,0 +1,9 @@
+
+- %check other things, 
+    - like the result of some command, 
+    - pgrep i3 >/dev/null  ## Is i3 running
+    - $ENV_VAR defined
+
+- %check, %otherwise 
+
+- %variables
