@@ -37,6 +37,9 @@ release() {
 install() {
   cp $PRGNAME $DST/bin/$PRGNAME
   chmod 755 $DST/bin/$PRGNAME
+
+  cp bin/dml $DST/bin/dml
+  chmod 755 $DST/bin/dml
 }
 
 run() {

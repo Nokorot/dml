@@ -13,6 +13,8 @@ public:
     const std::vector<char>& getKeyBuffer();
     const char* search(const std::string &key);
 
+    std::string browse(char *browseProgram);
+
 private:
     RedBlackTree m_indexTree; 
     std::vector<char> m_valueBuffer;

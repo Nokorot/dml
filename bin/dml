@@ -1,0 +1,19 @@
+#!/bin/sh
+
+source ~/.uservars
+
+_dmenu="$DMENU -i";
+
+[ -z "$DML_FILE" ] && {
+  echo "Please define $DML_FILE in your environment"
+  exit 1
+}
+
+if [ -z $1 ]; then
+  _dml_composer -i --browse-prg "$_dmenu" $DML_FILE
+else
+  _dml_composer -i $DML_FILE "$1"
+fi | ${SHELL:-"/bin/sh"} &
+
+# usage() {
+#     echo "Usage: $0 [-c <file>] <choose>\\n   -c: dml-file, default '$DML_FILE' \\n" 1>&2; exit 1;}

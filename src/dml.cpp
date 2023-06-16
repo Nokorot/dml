@@ -8,6 +8,9 @@
 #include "options.h"
 #include "dml.h"
 
+
+#include <unistd.h>
+
 DML::DML(Options &opt, const std::string &filepath)
     : m_filepath(filepath), m_cacheFilepath(getCachePath(opt.cacheDir, filepath))
 {
@@ -85,3 +88,82 @@ void DML::loadCacheFiles() {
     }
 }
 
+std::string DML::browse(char *browseProgram) 
+{
+    std::string result;
+    // struct popen2 child;
+    int read_pipe[2], write_pipe[2];
+
+    if(pipe(read_pipe) || pipe(write_pipe)) {
+        printf("ERROR: Failed to open pipe!");
+        exit(1);
+    }
+
+    pid_t p = fork();
+    if(p < 0) {
+        printf("ERROR: Failed to fork process!");
+        exit(1);
+    }
+    if(p == 0) { /* child */
+        char cmd[1024];
+
+        close(read_pipe[1]); // Close the write end of the pipe
+        close(write_pipe[0]); // Close the read end of the path
+
+        char *ch = browseProgram, *dst = cmd;
+        int input_file = 0;
+        int output_file = 0;
+        while (*ch) {
+            if (*ch == '%') {
+                switch (*(++ch)) {
+                case 'i':
+                    dst += sprintf(dst, "/proc/self/fd/%u", read_pipe[0]);
+                    input_file = 1;
+                break;
+                case 'o':
+                    dst += sprintf(dst, "/proc/self/fd/%u", write_pipe[1]);
+                    output_file = 1;
+                break;
+                default:
+                    fprintf(stderr, "ERROR: Unknown identifier '%%%c'!\n", *ch);
+                    exit(1);
+                };
+    
+                ++ch;
+                continue;
+            }
+            *(dst++) = *(ch++);
+        }
+        *dst = 0;
+  
+        if (!input_file) 
+            dup2(read_pipe[0], 0); // Replace stdin with the read end of the pipe
+        if (!output_file) 
+            dup2(write_pipe[1], 1); // Replace stdout with the write end of the pipe
+
+        execl("/bin/sh", "sh", "-c", cmd, NULL);
+        perror("execl"); exit(99);
+    } 
+    
+    // Parent process
+    close(read_pipe[0]); // Close read end of pipe
+    close(write_pipe[1]);  // Close write end of pipe
+    
+    FILE *to_child_fd = fdopen(read_pipe[1], "w");
+    
+    const std::vector<char>& keyBuffer = getKeyBuffer();
+    fprintf(to_child_fd, "%.*s", (int) keyBuffer.size(), &keyBuffer[0]);
+    fflush(to_child_fd);
+    close(read_pipe[1]);
+
+
+    char buff[1024];
+    size_t len = read(write_pipe[0], buff, 1024);
+
+    if (len) {
+        buff[len-1] = 0;
+        return search(buff);
+    }
+
+    return "";
+}
