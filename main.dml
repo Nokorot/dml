@@ -18,4 +18,4 @@
 %include /home/noko/.config/dml/web.dml
 # %endif
 
-ls
+ls       ls -l

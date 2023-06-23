@@ -1,28 +1,25 @@
-#include <cstddef>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <iostream>
 #include <fstream>
-#include <sstream>
-#include <openssl/evp.h>
 #include <filesystem>
-#include <string>
-#include <sys/types.h>
-#include <sys/wait.h>
+#include <cstring>
 #include <vector>
 
 #include <unistd.h>
 
 #include "base64.h"
-#include "popen2.h"
-// #include "execute.h"
+#include "shell_command.h"
 
 #include "file_parser.h"
 
-extern char** environ;
+// Helper function
+bool isProgramInPath(const std::string& programName);
+std::string trim(const std::string& str);
 
+std::streampos GetFileSize(std::ifstream& file);
 char* LoadFileIntoBuffer(const std::string& filename);
+
+
+// FileParser
 
 FileParser::FileParser(const std::string &inputFile)
     : m_inputFile(inputFile)
@@ -67,35 +64,10 @@ void FileParser::loadLine(std::string trimmedLine, RedBlackTree &indexTree, std:
         std::string shell_command;
         std::getline(iss >> std::ws, shell_command);
     
-        struct popen2 info;
-        popen2_env(shell_command.c_str(), &info, environ);
-        close(info.to_child);
+        ShellCommand shcmd = ShellCommand(shell_command, OPEN_FROM_CHILD_PIPE);
+        shcmd.execute();
 
-        
-        // char *buff = (char *) malloc(sizeof(char)*1024);
-        // memset(buff, 0, 1024);
-        // read(info.from_child, buff, 1024);
-
-    
-        // Read data from the pipe
-        static const int bufferSize = 1024;
-        char buffer[bufferSize];
-        std::ostringstream output;
-        ssize_t bytes_read;
-        while (0 < (bytes_read = read(info.from_child, buffer, bufferSize))) {
-            output << buffer;
-        }
-
-        // Check if we reached the end of the data
-        if (bytes_read < 0) {
-            std::cout << "Error occurred while reading the pipe!" << std::endl;
-        }
-
-        // Close the pipe
-        close(info.from_child);
-
-        // Get the data as a string
-        std::string data = output.str();
+        std::string data = shcmd.readOutput();
 
         loadFromBuffer( data.c_str(), indexTree, valueBuffer);
     
@@ -130,42 +102,11 @@ void FileParser::loadLine(std::string trimmedLine, RedBlackTree &indexTree, std:
         std::string condition;
         std::getline(iss >> std::ws, condition);
 
-        const char* args[] = { "/bin/bash", "-c", (char * const) condition.c_str(), nullptr };
-        pid_t p = fork();
-        if(p < 0) {
-            printf("ERROR: Failed to fork process!");
-            exit(1);
-        }
-        if(p == 0) 
-        { /* child */
-            execve(args[0], const_cast<char**>(args), environ);
-        }
+        ShellCommand shcmd = ShellCommand(condition, 0);
 
-        int status;
-        waitpid(p, &status, 0);
-
-        int exitStatus = -1;
-        if (WIFEXITED(status)) {
-            // Child process exited normally
-            exitStatus = WEXITSTATUS(status);
-            
-            // if VERBOSE
-            // printf("If command  '%s' exited with %u\n", condition.c_str(), exitStatus);
-        } else if (WIFSIGNALED(status)) {
-            // Child process terminated by a signal
-            int signalNumber = WTERMSIG(status);
-            std::cout << "Child process terminated by signal: " << signalNumber << std::endl;
-            exit(1);
-        } else {
-            // Other termination conditions
-            std::cout << "Child process terminated abnormally." << std::endl;
-            exit(1);
-        }
-        
+        int exitStatus = shcmd.waitforChildExit();
         if (exitStatus != 0)
-        {
             skipingToEndif = true;
-        }
     }
     else  
     {
@@ -189,7 +130,6 @@ void FileParser::loadLine(std::string trimmedLine, RedBlackTree &indexTree, std:
 
 void FileParser::loadFromFile(const std::string& filepath, RedBlackTree &indexTree, std::vector<char> &valueBuffer)
 {
-    // std::ifstream inFile(filepath);
     char* buffer = LoadFileIntoBuffer(filepath);
     if (!buffer)
     {
@@ -213,7 +153,7 @@ void FileParser::loadFromBuffer(const char *buffer, RedBlackTree &indexTree, std
         // Check if the line continuation is pending
         if (!pendingLine.empty())
         {
-            line = pendingLine + line;
+            line = pendingLine + trim(line);
             pendingLine = "";
         }
 
@@ -252,13 +192,13 @@ void FileParser::loadFromBuffer(const char *buffer, RedBlackTree &indexTree, std
     }
 }
 
-bool FileParser::isProgramInPath(const std::string& programName) {
+bool isProgramInPath(const std::string& programName) {
     std::string command = "which " + programName + " > /dev/null 2>&1";
     int result = std::system(command.c_str());
     return (result == 0);
 }
 
-std::string FileParser::trim(const std::string& str)
+std::string trim(const std::string& str)
 {
     const auto first = str.find_first_not_of(" \t\n\r\f\v");
     if (first == std::string::npos)
@@ -267,7 +207,6 @@ std::string FileParser::trim(const std::string& str)
     const auto last = str.find_last_not_of(" \t\n\r\f\v");
     return str.substr(first, (last - first + 1));
 }
-
 
 
 

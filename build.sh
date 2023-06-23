@@ -8,8 +8,8 @@ GDB_DEBUG_FILE="debug.gdb"
 
 ### Source files
 SRC="$(find src -type f \( -name '*.cpp' -o -name "*.c" \))"
-# CC="g++"
-CC="clang++"
+CC="g++"
+# CC="clang++"
 
 ### Compile definions
 # DEFS="-D_WIN32_WINNT=0x0602"

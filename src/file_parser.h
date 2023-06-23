@@ -26,8 +26,5 @@ private:
     void loadLine(std::string trimmedLine, RedBlackTree &indexTree, std::vector<char> &valueBuffer);
     void loadFromFile(const std::string& inputFile, RedBlackTree &indexTree, std::vector<char> &valueBuffer); 
     void loadFromBuffer(const char *buffer, RedBlackTree &indexTree, std::vector<char> &valueBuffer);
-
-    bool isProgramInPath(const std::string& programName);
-    std::string trim(const std::string& str);
 };
 
