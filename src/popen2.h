@@ -35,5 +35,6 @@ struct popen2 {
 };
 
 int popen2(const char *cmdline, struct popen2 *childinfo);
+int popen2_env(const char *cmdline, struct popen2 *childinfo, char *const envp[]);
 
 #endif // POPEN2_H_

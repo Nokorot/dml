@@ -4,6 +4,8 @@ IN_FILE="$HOME/.dml/main"
 
 PRGNAME="_dml_composer"
 
+GDB_DEBUG_FILE="debug.gdb"
+
 ### Source files
 SRC="$(find src -type f \( -name '*.cpp' -o -name "*.c" \))"
 # CC="g++"
@@ -21,6 +23,17 @@ RFLAGS="$STD $LIBS -O3"
 
 ### Instalation destination
 DST="/usr"
+
+gen_gdb_commands() {
+  < $GDB_DEBUG_FILE sed 's,%IN_FILE,'"$IN_FILE,g"
+}
+
+_gdb() {
+  cmdf=$(mktemp)
+  gen_gdb_commands > $cmdf
+  gdb -q -x "$cmdf" $PRGNAME
+  rm $cmdf
+}
 
 debug() {
     set -x
@@ -71,6 +84,7 @@ if [ -z "$1" ]; then
 else
   case "$1" in
     debug)    debug ;;
+    gdb)      _gdb ;;
     release)  release ;;
     run)      debug && { shift; run $@; } ;;
     install)  release && install ;;

@@ -89,21 +89,23 @@ int main(int argc, char **argv)
 
     DML dml(opt, argv[0]);
 
-    if (*browseProgram) {
+    if (argv[1])
+    {
+        const char* command = dml.search(argv[1]);
+        fprintf(stdout, "%s\n", command);
+    }
+    else if (*browseProgram) 
+    {
         std::string value = dml.browse(*browseProgram);
         if (value.length())
             fprintf(stdout, "%s\n", value.c_str());
 
         return 0;
     }
-
-    if (*list || !argv[1]) {
+    else /* if (*list) */ {
         const std::vector<char>& keyBuffer = dml.getKeyBuffer();
         fprintf(stdout, "%.*s", (int) keyBuffer.size(), &keyBuffer[0]);
         exit(0);
-    } else {
-        const char* command = dml.search(argv[1]);
-        fprintf(stdout, "%s\n", command);
-    }
+    } 
 }
 

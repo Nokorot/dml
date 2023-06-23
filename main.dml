@@ -1,0 +1,21 @@
+# vim: ft=dml
+
+# This file list all the keywords that appear when running dml
+# 
+# Basics
+# shutdown        prompt "Shutdown computer?" && shutdown now
+# reboot          prompt "Reboot computer?" && sudo reboot
+# hibernate 	    prompt "Hibernate computer?" && sudo -A systemctl suspend
+# exit            prompt "Exit i3?" && i3-msg exit
+# lock            xset dpms force off; i3lock-fancy
+
+# %pregen ls ~/.bin | sed 's,\(.*\),\1 nvim "\1",'
+
+# %if [ "$MINI_DML" != "true" ] # This is for testing mostly
+%include /home/noko/.config/dml/scripts.dml
+# %include /home/noko/.config/dml/progs.dml
+%include /home/noko/.config/dml/i3.dml
+%include /home/noko/.config/dml/web.dml
+# %endif
+
+ls

@@ -8,6 +8,8 @@
 #include "red_black_tree.h"
 
 int RedBlackTree::key_compare(const char *key, int keyLen, int newNodeIndex) {
+    if (m_nodeBuffer[newNodeIndex].keyLen != keyLen)
+        return m_nodeBuffer[newNodeIndex].keyLen - keyLen;
     return std::strncmp(key, &m_keyBuffer[m_nodeBuffer[newNodeIndex].keyOffset], keyLen);
 }
 
@@ -15,7 +17,7 @@ void RedBlackTree::insert(const std::string &key, int value)
 {
     int keyOffset = m_keyBuffer.size();
     { // Add key to buffer
-        m_keyBuffer.resize(m_keyBuffer.size() + key.size() + 1);
+        m_keyBuffer.resize(m_keyBuffer.size() + key.size()+ 1);
 
         char *buffer = &m_keyBuffer[0] + keyOffset;
         memcpy(buffer, key.c_str(), key.size());

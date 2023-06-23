@@ -21,7 +21,7 @@ DML::DML(Options &opt, const std::string &filepath)
         FileParser parser(m_filepath);
         parser.parseFile(m_indexTree, m_valueBuffer);
 
-        saveCacheFile();
+        // saveCacheFile();
     }
 }
 
@@ -54,7 +54,7 @@ std::string DML::getCachePath(const std::string& cacheDir, std::string filepath)
 
     std::string hashBase64 = base64_encode(m_filePathHash, EVP_MAX_MD_SIZE);
 
-    return cacheDir + hashBase64.erase(hashBase64.length() - 2);
+    return cacheDir + "/" + hashBase64.erase(hashBase64.length() - 2);
 }
 
 void DML::saveCacheFile()
