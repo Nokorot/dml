@@ -1,7 +1,9 @@
+#include <cstdio>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
 #include <cstring>
+#include <system_error>
 #include <vector>
 
 #include <unistd.h>
@@ -30,11 +32,34 @@ void FileParser::parseFile(RedBlackTree &indexTree, std::vector<char> &valueBuff
     loadFromFile(m_inputFile, indexTree, valueBuffer); 
 }
 
+std::string parseString(const char *ch, const char **end)
+{
+    const char *head = ch;
+    if (*ch == '"') {
+      ++head, ++ch;
+      while (*ch && *ch!='"') ++ch;
+      if (end) *end = ch + (ch ? 1 : 0);
+      return std::string(head, ch-head);
+    }
+
+    while (*ch && *ch!=' ' && *ch!='\t') ++ch;
+    if (end) *end = ch;
+    std::string restult(head, ch-head);
+
+    return restult;
+}
+
 void FileParser::loadLine(std::string trimmedLine, RedBlackTree &indexTree, std::vector<char> &valueBuffer) {
 
-    std::istringstream iss(trimmedLine);
-    std::string directive;
-    iss >> directive;
+    const char *ch = trimmedLine.c_str();
+    std::string directive = parseString(ch, &ch);
+
+    // Ship spaces
+    while (*ch && (*ch==' ' || *ch=='\t')) ++ch;
+
+    // std::istringstream iss(trimmedLine);
+    // std::string directive;
+    // iss >> directive;
 
     if (directive.empty())
         return;
@@ -50,8 +75,9 @@ void FileParser::loadLine(std::string trimmedLine, RedBlackTree &indexTree, std:
     else if (skipingToEndif) { return; }
     else if (directive.compare("%include") == 0)
     {
-        std::string includeFile;
-        iss >> includeFile;
+        std::string includeFile = parseString(ch, &ch);
+
+        // iss >> includeFile;
 
         // TODO: Error if there is more on the line?
   
@@ -61,8 +87,8 @@ void FileParser::loadLine(std::string trimmedLine, RedBlackTree &indexTree, std:
     else if (directive.compare("%pregen") == 0)
     {
         // TODO: This is a bit absurd .
-        std::string shell_command;
-        std::getline(iss >> std::ws, shell_command);
+        std::string shell_command(ch);
+        // std::getline(iss >> std::ws, shell_command);
     
         ShellCommand shcmd = ShellCommand(shell_command, OPEN_FROM_CHILD_PIPE);
         shcmd.execute();
@@ -74,46 +100,50 @@ void FileParser::loadLine(std::string trimmedLine, RedBlackTree &indexTree, std:
     }
     else if (directive.compare("%check") == 0)
     {
-        std::string program;
-        iss >> program;
+        std::string program = parseString(ch, &ch);
+        // iss >> program;
 
         if (isProgramInPath(program))
         {
-            std::string line;
-            std::getline(iss >> std::ws, line);
+            std::string line(ch);
+            // std::getline(iss >> std::ws, line);
             loadLine(program + " " + line, indexTree, valueBuffer);
         }
     }
     else if (directive.compare("%check*") == 0)
     {
-        std::string program;
-        iss >> program;
+        std::string program = parseString(ch, &ch);
+        // iss >> program;
 
         if (isProgramInPath(program))
         {
-            std::string line;
-            std::getline(iss >> std::ws, line);
+            std::string line(ch);
+            // std::getline(iss >> std::ws, line);
             loadLine(line, indexTree, valueBuffer);
         }
     }
     else if (directive.compare("%if") == 0)
-    {
+{
         // TODO: This is a bit absurd .
-        std::string condition;
-        std::getline(iss >> std::ws, condition);
+        std::string condition(ch);
+        // std::getline(iss >> std::ws, condition);
+        //
 
         ShellCommand shcmd = ShellCommand(condition, 0);
+        shcmd.execute();
 
         int exitStatus = shcmd.waitforChildExit();
+        // printf("Condition %s -> %u\n", condition.c_str(), exitStatus);
+
         if (exitStatus != 0)
             skipingToEndif = true;
     }
     else  
     {
         std::string key = directive;
-        std::string value;
+        std::string value(ch);
                     
-        std::getline(iss >> std::ws, value);  // Extract the entire rest of the line as the value
+        // std::getline(iss >> std::ws, value);  // Extract the entire rest of the line as the value
         if(value.empty())
             value = key;
         int valueOffset = valueBuffer.size();
