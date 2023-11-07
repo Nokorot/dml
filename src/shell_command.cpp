@@ -52,8 +52,7 @@ std::string ShellCommand::parseIOArguments(const std::string &cmd)
     return new_cmd.str();
 }
 
-pid_t ShellCommand::execute()
-{
+pid_t ShellCommand::execute() {
     if (m_flags & OPEN_TO_CHILD_PIPE) { // && !m_input_file) {
         pipe(pipe_stdin);
         // printf("PipeIn: %u %u\n", pipe_stdin[0], pipe_stdin[1]);
@@ -68,7 +67,7 @@ pid_t ShellCommand::execute()
         cmd = parseIOArguments(m_cmd);
 
     pid_t p = fork();
-    if (p < 0)
+    if (p < 0) {
         fprintf(stderr, "ERROR: Failed to fork process in ShellCommand::execute!\n");
     }
 
