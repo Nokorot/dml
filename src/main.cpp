@@ -1,7 +1,5 @@
-#include <bits/types/FILE.h>
 #include <cstddef>
 #include <cstdio>
-// #include <cstdlib>
 #include <iostream>
 #include <signal.h>
 #include <string>
@@ -17,7 +15,7 @@
 
 void usage(FILE *sink, const char *program)
 {
-    fprintf(sink, "Usage: %s [OPTIONS] [--] +[key-flags] <key-string> ... \n\n", program);
+    fprintf(sink, "Usage: %s [OPTIONS] [--] <dml-file> ... \n\n", program);
     fprintf(sink, "OPTIONS:\n");
     flag_print_options(sink);
 }
@@ -27,7 +25,7 @@ void createDirectory(const std::string& directoryPath) ;
 int main(int argc, char **argv);
 
 // NODE: Linux specific
-std::string getDefaultCacheDirectory() 
+std::string getDefaultCacheDirectory()
 {
     const char* homeDir = std::getenv("HOME");
     if (homeDir) {
@@ -38,28 +36,29 @@ std::string getDefaultCacheDirectory()
     return "";
 }
 
-void createDirectory(const std::string& directoryPath) 
+void createDirectory(const std::string& directoryPath)
 {
     if (!std::filesystem::exists(directoryPath)) {
         if (!std::filesystem::create_directory(directoryPath)) {
             std::cerr << "Failed to create directory: " << directoryPath << std::endl;
         }
-    } 
+    }
 }
 
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
     const char *program_name = *argv;
 
     // Define command line flags
     bool *help = flag_bool("help", 'h', "Print this help to stdout and exit with 0");
-    bool *list = flag_bool("list", 'l', "List all the keys");
+    // bool *list = flag_bool("list", 'l', "List all the keys");
 
-    bool *ignoreCache = flag_bool("ignore-cache", 'i', "Ignore cache and reload the file");
+    // bool *ignoreCache = flag_bool("ignore-cache", 'i', "Ignore cache and reload the file");
+    bool *cachepath = flag_bool("cache-path", 'c', "Output the cache path to stdout");
 
     char **browseProgram = flag_str("browse-prg", nullptr, "Specify a program with witch to browse the list");
     // TODO: Example _dml_composer --browse-prg "(){ < \"$1\" dmenu > \"$2\"; }" ???
-    
+
     std::string defaultCacheDir = getDefaultCacheDirectory() + "/dml";
     char **cacheDir = flag_str("cache-dir", defaultCacheDir.c_str(), "Set cache directory");
 
@@ -68,7 +67,7 @@ int main(int argc, char **argv)
         flag_print_error(stderr);
         exit(1);
     }
-    
+
     // argc = flag_rest_argc();
     argv = flag_rest_argv();
 
@@ -77,24 +76,31 @@ int main(int argc, char **argv)
         exit(0);
     }
 
+
     Options opt;
-    opt.cacheDir = *cacheDir; 
+    opt.cacheDir = *cacheDir;
     createDirectory(opt.cacheDir);
-    opt.ignoreCache = *ignoreCache;
-    
+    opt.ignoreCache = true; // *ignoreCache;
+
     if (!argv[0]) {
         fprintf(stderr, "ERROR: Not enough arguments provided! (see -h)\n");
         exit(1);
     }
 
+    if (*cachepath) {
+        printf("%s", getCachePath(opt.cacheDir, argv[0]).c_str());
+        exit(0);
+    }
+
     DML dml(opt, argv[0]);
+
 
     if (argv[1])
     {
         const char* command = dml.search(argv[1]);
         fprintf(stdout, "%s\n", command);
     }
-    else if (*browseProgram) 
+    else if (*browseProgram)
     {
         std::string value = dml.browse(*browseProgram);
         if (value.length())
@@ -106,6 +112,6 @@ int main(int argc, char **argv)
         const std::vector<char>& keyBuffer = dml.getKeyBuffer();
         fprintf(stdout, "%.*s", (int) keyBuffer.size(), &keyBuffer[0]);
         exit(0);
-    } 
+    }
 }
 
