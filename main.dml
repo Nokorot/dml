@@ -11,11 +11,13 @@
 
 # %pregen ls ~/.bin | sed 's,\(.*\),\1 nvim "\1",'
 
-# %if [ "$MINI_DML" != "true" ] # This is for testing mostly
+%if [ "$MINI_DML" != "true" ] # This is for testing mostly
 %include /home/noko/.config/dml/scripts.dml
 # %include /home/noko/.config/dml/progs.dml
 %include /home/noko/.config/dml/i3.dml
 %include /home/noko/.config/dml/web.dml
-# %endif
+%endif
 
-ls       ls -l
+"lAs a"       ls -l
+
+# %pregen flatpak list --app --columns=name,application | sed -e '1d' -e 's/ //g'
