@@ -1,1 +1,6 @@
 _dml_composer
+launch.json
+.vscode
+.gdb_history
+build.sh
+*.o
