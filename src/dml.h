@@ -5,6 +5,8 @@
 #include "red_black_tree.h"
 #include "options.h"
 
+std::string getCachePath(const std::string& cacheDir, std::string filepath);
+
 class DML 
 {
 public:
@@ -15,6 +17,7 @@ public:
 
     std::string browse(char *browseProgram);
 
+
 private:
     RedBlackTree m_indexTree; 
     std::vector<char> m_valueBuffer;
@@ -23,8 +26,5 @@ private:
 
     void saveCacheFile();
     void loadCacheFiles();
-  
-    std::string getCachePath(const std::string& cacheDir, std::string filepath);
-    
 };
 

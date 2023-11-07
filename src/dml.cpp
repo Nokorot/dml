@@ -1,3 +1,4 @@
+#include <bits/types/FILE.h>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -8,29 +9,28 @@
 #include "options.h"
 #include "dml.h"
 
-
-#include <unistd.h>
+#include "shell_command.h"
 
 DML::DML(Options &opt, const std::string &filepath)
     : m_filepath(filepath), m_cacheFilepath(getCachePath(opt.cacheDir, filepath))
 {
     if (!opt.ignoreCache && std::filesystem::exists(m_cacheFilepath))
         loadCacheFiles();
-    else 
+    else
     {
         FileParser parser(m_filepath);
         parser.parseFile(m_indexTree, m_valueBuffer);
 
-        // saveCacheFile();
+        saveCacheFile();
     }
 }
 
-const std::vector<char>& DML::getKeyBuffer() 
+const std::vector<char>& DML::getKeyBuffer()
 {
     return m_indexTree.getKeyBuffer();
 }
 
-const char* DML::search(const std::string &key) 
+const char* DML::search(const std::string &key)
 {
     int index = m_indexTree.search(key);
 
@@ -38,9 +38,9 @@ const char* DML::search(const std::string &key)
 }
 
 
-std::string DML::getCachePath(const std::string& cacheDir, std::string filepath)
+std::string getCachePath(const std::string& cacheDir, std::string filepath)
 {
-    std::filesystem::path absolutePath = std::filesystem::absolute(m_filepath);
+    std::filesystem::path absolutePath = std::filesystem::absolute(filepath);
     std::string absolutePathString = absolutePath.string();
 
     unsigned char m_filePathHash[EVP_MAX_MD_SIZE];
@@ -54,7 +54,7 @@ std::string DML::getCachePath(const std::string& cacheDir, std::string filepath)
 
     std::string hashBase64 = base64_encode(m_filePathHash, EVP_MAX_MD_SIZE);
 
-    return cacheDir + "/" + hashBase64.erase(hashBase64.length() - 2);
+    return cacheDir + "/" + hashBase64.erase(20);
 }
 
 void DML::saveCacheFile()
@@ -88,81 +88,37 @@ void DML::loadCacheFiles() {
     }
 }
 
-std::string DML::browse(char *browseProgram) 
+std::string DML::browse(char *browseProgram)
 {
     std::string result;
-    // struct popen2 child;
-    int read_pipe[2], write_pipe[2];
 
-    if(pipe(read_pipe) || pipe(write_pipe)) {
-        printf("ERROR: Failed to open pipe!");
-        exit(1);
-    }
+    int flags = OPEN_TO_CHILD_PIPE | OPEN_FROM_CHILD_PIPE | USE_IO_ARGUMENT_FLAGS;
+    ShellCommand shcmd(browseProgram, flags);
+    shcmd.execute();
 
-    pid_t p = fork();
-    if(p < 0) {
-        printf("ERROR: Failed to fork process!");
-        exit(1);
-    }
-    if(p == 0) { /* child */
-        char cmd[1024];
+    int to_child = shcmd.getToChildPID();
+    FILE *to_child_fd = fdopen(to_child, "w");
 
-        close(read_pipe[1]); // Close the write end of the pipe
-        close(write_pipe[0]); // Close the read end of the path
-
-        char *ch = browseProgram, *dst = cmd;
-        int input_file = 0;
-        int output_file = 0;
-        while (*ch) {
-            if (*ch == '%') {
-                switch (*(++ch)) {
-                case 'i':
-                    dst += sprintf(dst, "/proc/self/fd/%u", read_pipe[0]);
-                    input_file = 1;
-                break;
-                case 'o':
-                    dst += sprintf(dst, "/proc/self/fd/%u", write_pipe[1]);
-                    output_file = 1;
-                break;
-                default:
-                    fprintf(stderr, "ERROR: Unknown identifier '%%%c'!\n", *ch);
-                    exit(1);
-                };
-    
-                ++ch;
-                continue;
-            }
-            *(dst++) = *(ch++);
-        }
-        *dst = 0;
-  
-        if (!input_file) 
-            dup2(read_pipe[0], 0); // Replace stdin with the read end of the pipe
-        if (!output_file) 
-            dup2(write_pipe[1], 1); // Replace stdout with the write end of the pipe
-
-        execl("/bin/sh", "sh", "-c", cmd, NULL);
-        perror("execl"); exit(99);
-    } 
-    
-    // Parent process
-    close(read_pipe[0]); // Close read end of pipe
-    close(write_pipe[1]);  // Close write end of pipe
-    
-    FILE *to_child_fd = fdopen(read_pipe[1], "w");
-    
     const std::vector<char>& keyBuffer = getKeyBuffer();
     fprintf(to_child_fd, "%.*s", (int) keyBuffer.size(), &keyBuffer[0]);
-    fflush(to_child_fd);
-    close(read_pipe[1]);
 
+    fclose(to_child_fd);
+    // close(to_child);
 
-    char buff[1024];
-    size_t len = read(write_pipe[0], buff, 1024);
+    int status = shcmd.waitforChildExit();
+    // printf("Exit Status: %u\n", status);
 
-    if (len) {
-        buff[len-1] = 0;
-        return search(buff);
+    std::string output = shcmd.readOutput();
+
+    // Remove trailing newline character
+    if (!output.empty() && output.back() == '\n')
+        output.pop_back();
+
+    // printf("Output: %s\n", output.c_str());
+
+    if (output.length() != 0) {
+        // printf("Result: %s\n", search(output.c_str()));
+        return search(output.c_str());
     }
 
     return "";
