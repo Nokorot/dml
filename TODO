@@ -31,11 +31,12 @@
               True if string1 sorts after string2 lexicographically.
 
 
+- Macros could be a thing. 
 
-- %check, %otherwise 
+- %check, %otherwise # This is just an if, but %? could be used for a one line thing. 
+
 
 - %variables
-
 
 # Kinda works
     - %if blocks. Could replace the %check maybe
