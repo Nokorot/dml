@@ -2,18 +2,36 @@
 
 source ~/.uservars
 
-_dmenu="$DMENU -i";
-
-[ -z "$DML_FILE" ] && {
-  echo "Please define $DML_FILE in your environment"
-  exit 1
+main() {
+  _dmenu="$DMENU -i";
+  [ -z "$DML_FILE" ] && {
+    echo "Please define $DML_FILE in your environment"
+    exit 1
+  }
+  
+  if [ -z $1 ]; then
+    _dml_composer -i --browse-prg "$_dmenu" $DML_FILE
+  else
+    _dml_composer -i $DML_FILE "$1"
+  fi | ${SHELL:-"/bin/sh"} &
+  
 }
 
-if [ -z $1 ]; then
-  _dml_composer -i --browse-prg "$_dmenu" $DML_FILE
-else
-  _dml_composer -i $DML_FILE "$1"
-fi | ${SHELL:-"/bin/sh"} &
+usage() {
+    echo "Usage: $0 [--dml-file <file>] <choose>\\n   --dml-file: dml-file, default '$DML_FILE' \\n" 1>&2; exit 1;
+}
 
-# usage() {
-#     echo "Usage: $0 [-c <file>] <choose>\\n   -c: dml-file, default '$DML_FILE' \\n" 1>&2; exit 1;}
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+    --dml-file) DML_FILE=$2; shift ;;
+    --dmenu)    DMENU=$2; shift ;;
+    -h|--help) _usage; exit 0 ;;
+    --) shift; break;;
+    -*) echo "Invalid option '$1'" > /dev/stderr; exit 1 ;;
+    *) POSITIONAL+=("$1") ;;
+esac; shift;
+done
+main "${POSITIONAL[@]}"
+
