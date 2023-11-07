@@ -13,7 +13,7 @@ int RedBlackTree::key_compare(const char *key, int keyLen, int newNodeIndex) {
     return std::strncmp(key, &m_keyBuffer[m_nodeBuffer[newNodeIndex].keyOffset], keyLen);
 }
 
-void RedBlackTree::insert(const std::string &key, int value) 
+void RedBlackTree::insert(const std::string &key, int value)
 {
     int keyOffset = m_keyBuffer.size();
     { // Add key to buffer
@@ -23,7 +23,7 @@ void RedBlackTree::insert(const std::string &key, int value)
         memcpy(buffer, key.c_str(), key.size());
         buffer[key.size()] = '\n';
     }
-    
+
     int newNodeIndex = m_nodeCount++;
     m_nodeBuffer.resize(m_nodeCount);
     Node *nd = &m_nodeBuffer[newNodeIndex];
@@ -51,7 +51,7 @@ void RedBlackTree::insert(const std::string &key, int value)
     } else {
         m_nodeBuffer[parentNodeIndex].right = newNodeIndex;
     }
- 
+
     insertFixup(newNodeIndex);
 }
 
@@ -64,7 +64,7 @@ int RedBlackTree::search(const std::string &key) {
             currentNodeIndex = m_nodeBuffer[currentNodeIndex].right;
         }
     }
-    if (currentNodeIndex == -1) 
+    if (currentNodeIndex == -1)
         return -1;
     return m_nodeBuffer[currentNodeIndex].value;
 }
@@ -91,11 +91,10 @@ void RedBlackTree::saveTreeToFile(std::ofstream &file) {
 }
 
 void RedBlackTree::loadTreeFromFile(std::ifstream &file) {
-    size_t keysBufferSize;
-    file.read(reinterpret_cast<char*>(&keysBufferSize), sizeof(keysBufferSize));
-    m_keyBuffer.resize(keysBufferSize);
-    file.read(reinterpret_cast<char*>(&m_keyBuffer[0]), keysBufferSize);
-
+    size_t keyBufferSize;
+    file.read(reinterpret_cast<char*>(&keyBufferSize), sizeof(keyBufferSize));
+    m_keyBuffer.resize(keyBufferSize);
+    file.read(reinterpret_cast<char*>(&m_keyBuffer[0]), keyBufferSize);
     file.read(reinterpret_cast<char*>(&m_root), sizeof(m_root));
 
     int bufferSize;
