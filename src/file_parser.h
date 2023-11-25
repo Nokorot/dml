@@ -16,7 +16,7 @@ public:
 
     void parseFile(RedBlackTree &indexTree, std::vector<char> &valueBuffer);
 
-private: 
+private:
     uint32_t skipIfBlock = 0;
     uint32_t ifBlockDepth = 0;
 
@@ -26,7 +26,7 @@ private:
 
     // Helper function for parseFile
     void loadLine(std::string trimmedLine, RedBlackTree &indexTree, std::vector<char> &valueBuffer);
-    void loadFromFile(const std::string& inputFile, RedBlackTree &indexTree, std::vector<char> &valueBuffer); 
+    void loadFromFile(const std::string& inputFile, RedBlackTree &indexTree, std::vector<char> &valueBuffer);
     void loadFromBuffer(const char *buffer, RedBlackTree &indexTree, std::vector<char> &valueBuffer);
 };
 

@@ -103,7 +103,6 @@ void FileParser::loadLine(std::string trimmedLine, RedBlackTree &indexTree, std:
             skipIfBlock = (exitStatus == 0) ? 0 : 1;
             return;
         }
-
     }
 
     if (skipIfBlock > 0) {
@@ -117,6 +116,12 @@ void FileParser::loadLine(std::string trimmedLine, RedBlackTree &indexTree, std:
         }
         return;
     }
+
+    if (directive.compare("%endif") == 0) {
+        ifBlockDepth--;
+        return;
+    }
+
 
     // Ship spaces
     while (*ch && (*ch==' ' || *ch=='\t')) ++ch;
@@ -178,24 +183,19 @@ void FileParser::loadLine(std::string trimmedLine, RedBlackTree &indexTree, std:
     else if (directive.compare("%else") == 0
             || directive.compare("%elseif") == 0 )
     {
-        // TODO if (!ifBlockDepth) // ERROR
+
+        if (!ifBlockDepth) {
+            fprintf(stderr, "ERROR: Unexpected '%s' directive!\n");
+            // FILE and Line for logging would be useful
+            return;
+        }
+        
         skipIfBlock = 1;
     }
-
-
-    else if (directive.compare("%def") == 0)
+    /* else if (directive.compare("%def") == 0)
     {
         // TODO: This is a bit absurd .
-        std::string condition(ch);
-
-        ShellCommand shcmd = ShellCommand(condition, 0);
-        shcmd.execute();
-
-        int exitStatus = shcmd.waitforChildExit();
-
-        if (exitStatus != 0)
-            skipIfBlock = 1;
-    }
+    }*/
     else
     {
         std::string key = directive;
