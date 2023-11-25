@@ -72,8 +72,6 @@ pid_t ShellCommand::execute() {
     }
 
     if (p == 0) { /* Child process*/
-        fprintf(stdout, "%s\n", cmd.c_str());
-
         if (m_flags & OPEN_TO_CHILD_PIPE) {
             close(pipe_stdin[1]); // Close write part of stdin
             if (!m_input_file)

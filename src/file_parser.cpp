@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -27,9 +28,9 @@ FileParser::FileParser(const std::string &inputFile)
     : m_inputFile(inputFile)
 {}
 
-void FileParser::parseFile(RedBlackTree &indexTree, std::vector<char> &valueBuffer) 
-{ 
-    loadFromFile(m_inputFile, indexTree, valueBuffer); 
+void FileParser::parseFile(RedBlackTree &indexTree, std::vector<char> &valueBuffer)
+{
+    loadFromFile(m_inputFile, indexTree, valueBuffer);
 }
 
 std::string parseString(const char *ch, const char **end)
@@ -49,38 +50,83 @@ std::string parseString(const char *ch, const char **end)
     return restult;
 }
 
+std::string replaceEnvVars(const std::string &input) {
+    std::string output = input;
+
+    size_t start = 0;
+    while ((start = output.find('$', start)) != std::string::npos) {
+        size_t end = start + 1;
+        while (end < output.length() &&
+                (isalnum(output[end]) || output[end] == '_')) {
+            end++;
+        }
+
+        size_t varLength = end - start;
+        if (varLength > 1) {
+            std::string varName = output.substr(start + 1, varLength - 1);
+
+            const char *envValue = std::getenv(varName.c_str());
+            if (envValue != nullptr) {
+                output.replace(start, varLength, envValue);
+            } else {
+                output.erase(start, 1);
+            }
+        } else {
+            output.erase(start, 1);
+        }
+    }
+
+    return output;
+}
+
 void FileParser::loadLine(std::string trimmedLine, RedBlackTree &indexTree, std::vector<char> &valueBuffer) {
 
     const char *ch = trimmedLine.c_str();
     std::string directive = parseString(ch, &ch);
 
-    // Ship spaces
-    while (*ch && (*ch==' ' || *ch=='\t')) ++ch;
-
-    // std::istringstream iss(trimmedLine);
-    // std::string directive;
-    // iss >> directive;
-
     if (directive.empty())
         return;
 
-    // TODO IF first character is %, hashTable
+    if (skipIfBlock == 1) {
+        if (directive.compare("%else") == 0) {
+            skipIfBlock = 0;
+            return;
+        }
+        else if (directive.compare("%elseif") == 0) {
+            std::string condition(ch);
 
-    // Check for the '%include' directive
-    if (directive.compare("%endif") == 0)
-    {
-        skipingToEndif = false;
+            ShellCommand shcmd = ShellCommand(condition, 0);
+            shcmd.execute();
+
+            int exitStatus = shcmd.waitforChildExit();
+
+            skipIfBlock = (exitStatus == 0) ? 0 : 1;
+            return;
+        }
+
+    }
+
+    if (skipIfBlock > 0) {
+        if (directive.compare("%if") == 0) {
+            skipIfBlock++;
+            ifBlockDepth++;
+        }
+        else if (directive.compare("%endif") == 0) {
+            skipIfBlock--;
+            ifBlockDepth--;
+        }
         return;
-    } 
-    else if (skipingToEndif) { return; }
-    else if (directive.compare("%include") == 0)
+    }
+
+    // Ship spaces
+    while (*ch && (*ch==' ' || *ch=='\t')) ++ch;
+
+    // TODO IF first character is %, hashTable
+    if (directive.compare("%include") == 0)
     {
         std::string includeFile = parseString(ch, &ch);
+        includeFile = replaceEnvVars(includeFile.c_str());
 
-        // iss >> includeFile;
-
-        // TODO: Error if there is more on the line?
-  
         // Load the included file recursively
         loadFromFile(includeFile, indexTree, valueBuffer);
     }
@@ -88,71 +134,82 @@ void FileParser::loadLine(std::string trimmedLine, RedBlackTree &indexTree, std:
     {
         // TODO: This is a bit absurd .
         std::string shell_command(ch);
-        // std::getline(iss >> std::ws, shell_command);
-    
+
         ShellCommand shcmd = ShellCommand(shell_command, OPEN_FROM_CHILD_PIPE);
         shcmd.execute();
 
         std::string data = shcmd.readOutput();
 
         loadFromBuffer( data.c_str(), indexTree, valueBuffer);
-    
     }
     else if (directive.compare("%check") == 0)
     {
         std::string program = parseString(ch, &ch);
-        // iss >> program;
 
         if (isProgramInPath(program))
         {
             std::string line(ch);
-            // std::getline(iss >> std::ws, line);
             loadLine(program + " " + line, indexTree, valueBuffer);
         }
     }
     else if (directive.compare("%check*") == 0)
     {
         std::string program = parseString(ch, &ch);
-        // iss >> program;
 
         if (isProgramInPath(program))
         {
             std::string line(ch);
-            // std::getline(iss >> std::ws, line);
             loadLine(line, indexTree, valueBuffer);
         }
     }
     else if (directive.compare("%if") == 0)
-{
-        // TODO: This is a bit absurd .
+    {
         std::string condition(ch);
-        // std::getline(iss >> std::ws, condition);
-        //
 
         ShellCommand shcmd = ShellCommand(condition, 0);
         shcmd.execute();
 
         int exitStatus = shcmd.waitforChildExit();
-        // printf("Condition %s -> %u\n", condition.c_str(), exitStatus);
+
+        ifBlockDepth++;
+        if (exitStatus != 0)
+            skipIfBlock = 1;
+    }
+    else if (directive.compare("%else") == 0
+            || directive.compare("%elseif") == 0 )
+    {
+        // TODO if (!ifBlockDepth) // ERROR
+        skipIfBlock = 1;
+    }
+
+
+    else if (directive.compare("%def") == 0)
+    {
+        // TODO: This is a bit absurd .
+        std::string condition(ch);
+
+        ShellCommand shcmd = ShellCommand(condition, 0);
+        shcmd.execute();
+
+        int exitStatus = shcmd.waitforChildExit();
 
         if (exitStatus != 0)
-            skipingToEndif = true;
+            skipIfBlock = 1;
     }
-    else  
+    else
     {
         std::string key = directive;
         std::string value(ch);
-                    
-        // std::getline(iss >> std::ws, value);  // Extract the entire rest of the line as the value
+
         if(value.empty())
             value = key;
         int valueOffset = valueBuffer.size();
         {
             valueBuffer.resize(valueOffset + value.size() + 1);
-    
+
             memcpy(&valueBuffer[valueOffset], value.c_str(), value.size());
             valueBuffer[valueOffset + value.size()] = '\0';
-      
+
             indexTree.insert(key, valueOffset);
         }
     }
@@ -166,10 +223,10 @@ void FileParser::loadFromFile(const std::string& filepath, RedBlackTree &indexTr
         std::cerr << "Failed to open the input file." << std::endl;
         return;
     }
- 
+
     loadFromBuffer(buffer, indexTree, valueBuffer);
 
-    delete[] buffer; 
+    delete[] buffer;
 }
 
 void FileParser::loadFromBuffer(const char *buffer, RedBlackTree &indexTree, std::vector<char> &valueBuffer)
@@ -255,7 +312,7 @@ char* LoadFileIntoBuffer(const std::string& filename) {
     }
 
     std::streampos fileSize = GetFileSize(file);
-    
+
 
     char* buffer = new char[int(fileSize) + 1];
 

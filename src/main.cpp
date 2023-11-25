@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     bool *help = flag_bool("help", 'h', "Print this help to stdout and exit with 0");
     // bool *list = flag_bool("list", 'l', "List all the keys");
 
-    // bool *ignoreCache = flag_bool("ignore-cache", 'i', "Ignore cache and reload the file");
+    bool *ignoreCache = flag_bool("ignore-cache", 'i', "Ignore cache and reload the file");
     bool *cachepath = flag_bool("cache-path", 'c', "Output the cache path to stdout");
 
     char **browseProgram = flag_str("browse-prg", nullptr, "Specify a program with witch to browse the list");

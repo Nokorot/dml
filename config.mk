@@ -24,4 +24,4 @@ CFLAGS = $(STD) -g3 -O0 -Wall -pedantic
 LDFLAGS = $(LIBS)
 
 # DFLAGS = $(STD) $(LIBS) -g3 -O0 -Wall -pedantic
-# RFLAGS = $(STD) $(LIBS) -O3
+RFLAGS = $(STD) $(LIBS) -O3

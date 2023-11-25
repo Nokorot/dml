@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <unordered_map>
 #include <vector>
 #include <openssl/evp.h>
@@ -16,7 +17,8 @@ public:
     void parseFile(RedBlackTree &indexTree, std::vector<char> &valueBuffer);
 
 private: 
-    bool skipingToEndif = false;
+    uint32_t skipIfBlock = 0;
+    uint32_t ifBlockDepth = 0;
 
     const std::string m_inputFile, m_cacheFilename;
 
