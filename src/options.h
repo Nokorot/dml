@@ -7,6 +7,9 @@ struct Options {
      std::string cacheDir; 
 
      bool ignoreCache;
+     bool recent;
+
+     int historyLength = 5;
 };
 
 #endif

@@ -25,6 +25,10 @@ release:
 %.o: %.cpp
 	$(CC) -c $(CFLAGS) -o $@ $<
 
+dml.o: dml.cpp dml.h base64.h file_parser.h options.h dml.h shell_command.h
+	$(CC) -c $(CFLAGS) -o $@ $<
+
+
 clean:
 	rm -f _dml_composer $(OBJ)
 

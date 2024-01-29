@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <iostream>
 #include <signal.h>
@@ -53,8 +54,12 @@ int main(int argc, char **argv)
     bool *help = flag_bool("help", 'h', "Print this help to stdout and exit with 0");
     // bool *list = flag_bool("list", 'l', "List all the keys");
 
-    bool *ignoreCache = flag_bool("ignore-cache", 'i', "Ignore cache and reload the file");
-    bool *cachepath = flag_bool("cache-path", 'c', "Output the cache path to stdout");
+    bool *ignoreCache   = flag_bool("ignore-cache", 'i', "Ignore cache and reload the file");
+    bool *cachepath     = flag_bool("cache-path", 'c', "Output the cache path to stdout");
+
+    // TODO: Consider removing the recent flag, and use it when historyLength > 0;
+    bool *recent        = flag_bool("recent", 'r', "Lists the most recently selected entries first");
+    uint64_t *historyLength = flag_uint64("history", 0, "The number of entries that are stored int the history file");
 
     char **browseProgram = flag_str("browse-prg", nullptr, "Specify a program with witch to browse the list");
     // TODO: Example _dml_composer --browse-prg "(){ < \"$1\" dmenu > \"$2\"; }" ???
@@ -82,6 +87,10 @@ int main(int argc, char **argv)
     createDirectory(opt.cacheDir);
     opt.ignoreCache = true; // *ignoreCache;
 
+    // TODO: Hist length
+    opt.recent = *recent;
+    opt.historyLength = *historyLength;
+
     if (!argv[0]) {
         fprintf(stderr, "ERROR: Not enough arguments provided! (see -h)\n");
         exit(1);
@@ -93,7 +102,6 @@ int main(int argc, char **argv)
     }
 
     DML dml(opt, argv[0]);
-
 
     if (argv[1])
     {

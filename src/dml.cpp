@@ -3,6 +3,9 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
+#include <string>
+#include <unordered_set>
 
 #include "base64.h"
 #include "file_parser.h"
@@ -12,9 +15,13 @@
 #include "shell_command.h"
 
 DML::DML(Options &opt, const std::string &filepath)
-    : m_filepath(filepath), m_cacheFilepath(getCachePath(opt.cacheDir, filepath))
+    : m_opt(opt), m_filepath(filepath), 
+    m_cacheFilepath(getCachePath(opt.cacheDir, filepath))
 {
-    if (!opt.ignoreCache && std::filesystem::exists(m_cacheFilepath))
+    if (std::filesystem::exists(m_cacheFilepath + ".hist"))
+        loadHistory();
+
+    if (!opt.ignoreCache && std::filesystem::exists(m_cacheFilepath + ".dat"))
         loadCacheFiles();
     else
     {
@@ -25,12 +32,17 @@ DML::DML(Options &opt, const std::string &filepath)
     }
 }
 
+DML::~DML()
+{
+    saveHistory();
+}
+
 const std::vector<char>& DML::getKeyBuffer()
 {
     return m_indexTree.getKeyBuffer();
 }
 
-const char* DML::search(const std::string &key)
+const char* DML::search(const std::string key)
 {
     int index = m_indexTree.search(key);
 
@@ -59,7 +71,7 @@ std::string getCachePath(const std::string& cacheDir, std::string filepath)
 
 void DML::saveCacheFile()
 {
-    std::ofstream outFile(m_cacheFilepath, std::ios::binary);
+    std::ofstream outFile(m_cacheFilepath + ".dat", std::ios::binary);
     if (!outFile)
     {
         std::cerr << "Failed to create the cache file." << std::endl;
@@ -72,6 +84,53 @@ void DML::saveCacheFile()
     size_t valueBufferSize = m_valueBuffer.size();
     outFile.write(reinterpret_cast<const char*>(&valueBufferSize), sizeof(valueBufferSize));
     outFile.write(reinterpret_cast<const char*>(&m_valueBuffer[0]), sizeof(char) * valueBufferSize);
+}
+
+void DML::saveHistory()
+{
+    if (!m_opt.historyLength)
+        return;
+
+    std::unordered_set<std::string> saved;
+    std::ofstream outFile(m_cacheFilepath + ".hist", std::ios::binary);
+    if (!outFile)
+    {
+        std::cerr << "Failed to create the history file." << std::endl;
+        return;
+    }
+
+    int count = 0;
+    for (auto key=m_history.begin(); key != m_history.end(); ++key) {
+        // Skip duplicate lines.
+        if (saved.find(*key) != saved.end())
+            continue;
+
+        if (count++ == m_opt.historyLength)
+            break;
+
+        saved.insert(*key);
+        outFile << *key << '\n';
+    }
+
+    outFile.close();
+}
+
+void DML::loadHistory()
+{
+    std::ifstream inputFile(m_cacheFilepath + ".hist");
+
+    // Check if the file is open
+    if (!inputFile.is_open()) {
+        std::cerr << "Failed to open the history file." << std::endl;
+        return;
+    }
+
+    std::string line;
+    while (std::getline(inputFile, line))
+        m_history.push_back(line);
+
+    // Close the file
+    inputFile.close();
 }
 
 void DML::loadCacheFiles() {
@@ -88,6 +147,47 @@ void DML::loadCacheFiles() {
     }
 }
 
+void DML::listKeys(FILE *sink)
+{
+    const std::vector<char>& keyBuffer = getKeyBuffer();
+
+    if (!m_opt.recent) {
+        fprintf(sink, "%.*s", (int) keyBuffer.size(), &keyBuffer[0]);
+        return;
+    }
+
+    std::unordered_set<std::string> printed;
+    for (auto it = m_history.begin(); it != m_history.end(); ++it) {
+        if (printed.find(*it) != printed.end())
+            continue;
+
+        if (m_indexTree.search(it->c_str()) < 0)
+            continue;
+
+        fprintf(sink, "%s\n", it->c_str());
+
+        printed.insert(*it);
+    }
+
+    // const char *ch_ptr = &keyBuffer[0];
+
+    // printf("B len %s\n", &keyBuffer[0]);
+
+    // const char* key = std::strchr(&keyBuffer[0], '\n');
+
+    std::istringstream keystream(&keyBuffer[0]);
+    std::string key;
+    while (std::getline(keystream, key))
+    {
+        if (printed.find(key) != printed.end())
+            continue;
+
+        // fprintf(sink, "%.*s", (int) keyBuffer.size(), &keyBuffer[0]);
+        fprintf(sink, "%s\n", key.c_str());
+        printed.insert(key);
+    }
+}
+
 std::string DML::browse(char *browseProgram)
 {
     std::string result;
@@ -99,9 +199,7 @@ std::string DML::browse(char *browseProgram)
     int to_child = shcmd.getToChildPID();
     FILE *to_child_fd = fdopen(to_child, "w");
 
-    const std::vector<char>& keyBuffer = getKeyBuffer();
-    fprintf(to_child_fd, "%.*s", (int) keyBuffer.size(), &keyBuffer[0]);
-
+    listKeys(to_child_fd);
     fclose(to_child_fd);
     // close(to_child);
 
@@ -117,9 +215,17 @@ std::string DML::browse(char *browseProgram)
     // printf("Output: %s\n", output.c_str());
 
     if (output.length() != 0) {
+        if (m_opt.recent)
+            pushRecent(output);
+
         // printf("Result: %s\n", search(output.c_str()));
         return search(output.c_str());
     }
 
     return "";
+}
+
+void DML::pushRecent(const std::string key) 
+{
+    m_history.insert(m_history.begin(), key);
 }
