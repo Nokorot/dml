@@ -233,49 +233,42 @@ void FileParser::loadFromBuffer(const char *buffer, RedBlackTree &indexTree, std
 {
     std::istringstream iss(buffer);
 
-    std::string line;
+    std::string line = "";
     std::string pendingLine; // Store the pending line continuation
     while (std::getline(iss, line))
     {
-        // Check if the line continuation is pending
-        if (!pendingLine.empty())
-        {
-            line = pendingLine + trim(line);
-            pendingLine = "";
-        }
-
-        // NOTE: This comes after the backslash check
+        line = pendingLine + trim(line);
 
         // Check if the line ends with a backslash
         if (line.back() == '\\')
         {
             line.pop_back();
-            pendingLine = trim(line);
+            pendingLine = line;
             continue;
         }
+        pendingLine = "";
 
-        std::string trimmedLine = trim(line);
-
-        if (trimmedLine.empty() || trimmedLine[0] == '#')
+        if (line.empty() || line[0] == '#') 
             continue;
 
         // Handle comments
-        size_t commentPos = trimmedLine.find('#');
+        size_t commentPos = line.find('#');
         if (commentPos != std::string::npos)
         {
             // Check if the '#' is escaped
-            if (commentPos > 0 && trimmedLine[commentPos - 1] == '\\')
-                trimmedLine.erase(commentPos - 1, 1);
+            if (commentPos > 0 && line[commentPos - 1] == '\\')
+                line.erase(commentPos - 1, 1);
             else
-                trimmedLine.erase(commentPos);
+                line.erase(commentPos);
         }
 
-        loadLine(trimmedLine, indexTree, valueBuffer);
+        loadLine(line, indexTree, valueBuffer);
+        line = "";
     }
 
-    if (!pendingLine.empty()) {
-        std::string trimmedLine = trim(pendingLine);
-        loadLine(trimmedLine, indexTree, valueBuffer);
+    // If the last line ends with '\', include it anyway
+    if (!line.empty()) {
+        loadLine(line, indexTree, valueBuffer);
     }
 }
 
